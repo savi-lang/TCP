@@ -1,18 +1,3 @@
-:trait TCP.Listener.Notify
-  :fun ref listening(listen TCP.Listener'ref): None
-  :fun ref not_listening(listen TCP.Listener'ref) None
-  :fun ref closed(listen TCP.Listener'ref): None
-  :fun ref connected!(
-    listen TCP.Listener'ref
-    ticket TCP.Listener.AcceptTicket
-  ) IO.Actor(IO.Action)
-
-// TODO: Is there another way to protect the fd by making it non-forgeable,
-// while avoiding the overhead of an allocation and pointer indirection?
-:class iso TCP.Listener.AcceptTicket
-  :var _fd U32
-  :new iso _new(@_fd)
-
 :actor TCP.Listener
   :let notify TCP.Listener.Notify
   :var listen_error OSError: OSError.None
@@ -22,9 +7,6 @@
 
   :var _count USize: 0
   :var _limit USize
-  :var _read_buffer_size USize
-  :var _yield_after_reading USize
-  :var _yield_after_writing USize
 
   :var _closed Bool: False
   :var _paused Bool: False
@@ -37,23 +19,19 @@
     host String = ""
     service String = "0"
     @_limit = 0
-    @_read_buffer_size = 16384
-    @_yield_after_reading = 16384
-    @_yield_after_writing = 16384
   )
-    new_notify TCP.Listener.Notify'ref = --notify // TODO: should not be needed
-    @notify = new_notify
+    @notify = --notify
 
     event = _LibPonyOS.pony_os_listen_tcp(@, host.cstring, service.cstring)
     if event.is_not_null (
       @_event = event
       @_fd = AsioEvent.fd(@_event)
       error = _LibPonyOS.pony_os_errno
-      new_notify.listening(@)
+      @notify.listening(@)
     |
       @listen_error = _LibPonyOS.pony_os_errno
       @_closed = True
-      new_notify.not_listening(@)
+      @notify.not_listening(@)
     )
 
   :: This is a special behaviour that hooks into the AsioEventNotify runtime,

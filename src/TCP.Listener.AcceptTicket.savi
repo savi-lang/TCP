@@ -1,0 +1,5 @@
+// TODO: Is there another way to protect the fd by making it non-forgeable,
+// while avoiding the overhead of an allocation and pointer indirection?
+:class iso TCP.Listener.AcceptTicket
+  :var _fd U32
+  :new iso _new(@_fd)
