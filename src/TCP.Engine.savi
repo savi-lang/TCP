@@ -23,7 +23,7 @@
 
   :fun non accept(
     actor IO.Actor(IO.Action)
-    ticket TCP.AcceptTicket
+    ticket TCP.Accept.Ticket
   )
     io = IO.CoreEngine.new_from_fd_rw(actor, ticket._fd)
     new = @_new_with_io(io)

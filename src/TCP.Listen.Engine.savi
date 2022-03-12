@@ -47,7 +47,7 @@
     @
 
   :fun ref pending_connections
-    :yields TCP.AcceptTicket for None
+    :yields TCP.Accept.Ticket for None
     if Platform.windows (
       None // TODO
     |
@@ -59,7 +59,7 @@
             |  0 | error! // EWOULDBLOCK, don't try again
             | -1 | None   // Some other error, so we can try again
             |
-              yield TCP.AcceptTicket._new(@_actor, conn_fd)
+              yield TCP.Accept.Ticket._new(@_actor, conn_fd)
               @_count += 1
             )
           )

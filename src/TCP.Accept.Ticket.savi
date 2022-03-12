@@ -1,4 +1,4 @@
-:struct iso TCP.AcceptTicket
+:struct iso TCP.Accept.Ticket
   :let _listener IO.Actor(IO.Action)
   :let _fd U32
   :new iso _new(@_listener, @_fd)
