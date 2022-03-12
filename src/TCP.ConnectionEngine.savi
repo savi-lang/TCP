@@ -34,11 +34,6 @@
   :new _new_with_io(@io)
     @write_stream = ByteStream.Writer.new(@io)
 
-  :fun ref deferred_actions
-    :yields IO.Action for None
-    // TODO
-    @
-
   :fun ref react(event CPointer(AsioEvent), flags U32, arg U32) @
     :yields IO.Action
     @io.react(event, flags, arg) -> (action |
