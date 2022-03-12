@@ -1,28 +1,35 @@
-:class iso TCP.Spec.Listener.Notify
-  :is TCP.Listener.Notify
+:actor TCP.Spec.Listener
+  :is IO.Actor(IO.Action)
   :let env Env
-  :new (@env)
+  :let io TCP.ListenerEngine
+  :new (@env): @io = TCP.ListenerEngine.new(@)
 
-  :fun ref listening(listen TCP.Listener'ref)
-    TCP.Spec.EchoClient.new(@env, Inspect[listen.local_port])
-    @env.err.print("[Listener] Listening")
+  :be dispose: @io.close
 
-  :fun ref not_listening(listen TCP.Listener'ref) None
-    @env.err.print("[Listener] Not listening:")
-    @env.err.print(listen.listen_error.name)
-
-  :fun ref closed(listen TCP.Listener'ref): None
-    @env.err.print("[Listener] Stopped listening")
-
-  :fun ref connected!(listen TCP.Listener'ref, ticket TCP.Listener.AcceptTicket)
-    TCP.Spec.Echoer.new(@env, listen, --ticket)
+  :fun ref _io_react(action IO.Action)
+    case action == (
+    | IO.Action.Opened |
+      TCP.Spec.EchoClient.new(@env, Inspect[@io.local_port])
+      @env.err.print("[Listener] Listening")
+    | IO.Action.OpenFailed |
+      @env.err.print("[Listener] Not listening:")
+      @env.err.print(@io.listen_error.name)
+    | IO.Action.Read |
+      @io.pending_connections -> (ticket |
+        TCP.Spec.Echoer.new(@env, @, --ticket)
+      )
+    | IO.Action.Closed |
+      @env.err.print("[Listener] Stopped listening")
+    )
+    @
 
 :actor TCP.Spec.Echoer
   :is IO.Actor(IO.Action)
   :let env Env
+  :let listener TCP.Spec.Listener
   :let io TCP.ConnectionEngine
-  :new (@env, listen, ticket)
-    @io = TCP.ConnectionEngine.accept(@, listen, --ticket)
+  :new (@env, @listener, ticket)
+    @io = TCP.ConnectionEngine.accept(@, --ticket)
     @env.err.print("[Echoer] Accepted")
 
   :fun ref _io_react(action IO.Action)
@@ -39,7 +46,7 @@
       )
     | IO.Action.Closed |
       @env.err.print("[Echoer] Closed")
-      try @io.listen.as!(TCP.Listener).dispose
+      @listener.dispose // ask the listener to close too
     )
     @
 
@@ -81,7 +88,6 @@
 
     | IO.Action.Closed |
       @env.err.print("[EchoClient] Closed")
-      try @io.listen.as!(TCP.Listener).dispose
     )
     @
 
@@ -90,4 +96,4 @@
   :const describes: "TCP"
 
   :it "can listen, connect, send, respond, disconnect, and stop listening"
-    TCP.Listener.new(TCP.Spec.Listener.Notify.new(@env))
+    TCP.Spec.Listener.new(@env)

@@ -1,7 +1,7 @@
-:actor TCP.Listener
-  :let notify TCP.Listener.Notify
-  :var listen_error OSError: OSError.None
+:class TCP.ListenerEngine
+  :is IO.Engine(IO.Action)
 
+  :let _actor IO.Actor(IO.Action)
   :var _fd U32: -1
   :var _event CPointer(AsioEvent): CPointer(AsioEvent).null
 
@@ -11,43 +11,43 @@
   :var _closed Bool: False
   :var _paused Bool: False
 
+  :var listen_error OSError: OSError.None
   :fun local_port: _NetAddress._for_fd(@_fd).port
 
   :new (
     // TODO: TCP.Listener.Auth, rather than ambient authority.
-    notify TCP.Listener.Notify'iso
+    @_actor
     host String = ""
     service String = "0"
     @_limit = 0
   )
-    @notify = --notify
-
-    event = _LibPonyOS.pony_os_listen_tcp(@, host.cstring, service.cstring)
+    event = _LibPonyOS.pony_os_listen_tcp(@_actor, host.cstring, service.cstring)
     if event.is_not_null (
       @_event = event
       @_fd = AsioEvent.fd(@_event)
-      error = _LibPonyOS.pony_os_errno
-      @notify.listening(@)
+      @_actor.io_deferred_action(IO.Action.Opened)
     |
       @listen_error = _LibPonyOS.pony_os_errno
       @_closed = True
-      @notify.not_listening(@)
+      @_actor.io_deferred_action(IO.Action.OpenFailed)
     )
 
-  :: This is a special behaviour that hooks into the AsioEventNotify runtime,
-  :: called whenever an event handle we're subscribed to receives an event.
-  :be _event_notify(event CPointer(AsioEvent), flags U32, arg U32)
+  // TODO: Delegate much of the AsioEvent internals to an `IO.CoreEngine`.
+  :fun ref react(event CPointer(AsioEvent), flags U32, arg U32) @
     if (@_event === event) (
       if AsioEvent.is_readable(flags) (
-        @_accept(arg)
+        yield IO.Action.Read
       )
       if AsioEvent.is_disposable(flags) (
         AsioEvent.destroy(@_event)
         @_event = CPointer(AsioEvent).null
+        yield IO.Action.Closed
       )
     )
+    @
 
-  :be _accept(ns U32 = 0)
+  :fun ref pending_connections
+    :yields TCP.AcceptTicket for None
     if Platform.windows (
       None // TODO
     |
@@ -58,7 +58,9 @@
             case conn_fd == (
             |  0 | error! // EWOULDBLOCK, don't try again
             | -1 | None   // Some other error, so we can try again
-            |      @_spawn(conn_fd)
+            |
+              yield TCP.AcceptTicket._new(@_actor, conn_fd)
+              @_count += 1
             )
           )
           @_paused = True
@@ -66,25 +68,21 @@
       )
     )
 
-  :fun ref _spawn(fd U32)
-    try (
-      @notify.connected!(@, TCP.Listener.AcceptTicket._new(fd))
-      @_count += 1
+  :fun ref deferred_action(action IO.Action)
+    if (action == IO.Action.ClosedChild) (
+      @_count -= 1
+
+      // If releasing this connection takes us below the limit,
+      // unpause acceptance and try to accept more connections.
+      if (@_paused && @_count < @_limit) (
+        @_paused = False
+        yield IO.Action.Read
+      )
     |
-      _LibPonyOS.pony_os_socket_close(fd)
+      yield action
     )
+    @
 
-  :be _conn_closed
-    @_count -= 1
-
-    // If releasing this connection takes us below the limit,
-    // unpause acceptance and try to accept more connections.
-    if (@_paused && @_count < @_limit) (
-      @_paused = False
-      @_accept
-    )
-
-  :be dispose: @close
   :fun ref close
     if (@_closed.not && @_event.is_not_null) (
       // When not on windows, unsubscribe immediately here instead of later.
@@ -92,6 +90,5 @@
 
       _LibPonyOS.pony_os_socket_close(@_fd)
       @_fd = -1
-
-      @notify.closed(@)
     )
+    @

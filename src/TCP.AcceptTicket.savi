@@ -1,0 +1,16 @@
+:struct iso TCP.AcceptTicket
+  :let _listener IO.Actor(IO.Action)
+  :let _fd U32
+  :new iso _new(@_listener, @_fd)
+
+  :: Reject this attempted connection instead of accepting it into an engine.
+  ::
+  :: This destroys the ticket, closes the underlying socket, and notifies
+  :: the listener that the count of open connections has reduced by one.
+  ::
+  :: If you fail to accept the ticket into an engine, you must call this
+  :: method. Otherwise these resources will not be freed up, and as a result,
+  :: your program will eventually be unable to accept additional sockets.
+  :fun iso reject
+    @_listener.io_deferred_action(IO.Action.ClosedChild)
+    _LibPonyOS.pony_os_socket_close(@_fd)

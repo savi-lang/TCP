@@ -1,3 +1,0 @@
-:struct iso TCP.Listener.AcceptTicket
-  :let _fd U32
-  :new iso _new(@_fd)

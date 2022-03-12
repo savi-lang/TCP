@@ -1,8 +1,0 @@
-:trait TCP.Listener.Notify
-  :fun ref listening(listen TCP.Listener'ref): None
-  :fun ref not_listening(listen TCP.Listener'ref) None
-  :fun ref closed(listen TCP.Listener'ref): None
-  :fun ref connected!(
-    listen TCP.Listener'ref
-    ticket TCP.Listener.AcceptTicket
-  ) IO.Actor(IO.Action)

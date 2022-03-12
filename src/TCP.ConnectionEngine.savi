@@ -1,14 +1,14 @@
 :class TCP.ConnectionEngine
   :is IO.Engine(IO.Action)
   :var io IO.CoreEngine
-  :var listen (TCP.Listener | None): None
+  :var _listener (IO.Actor(IO.Action) | None): None
   :var connect_error OSError: OSError.None
   :let read_stream: ByteStream.Reader.new
   :let write_stream ByteStream.Writer
 
   :fun non connect(
     // TODO: TCPConnectionAuth, rather than ambient authority.
-    actor AsioEventNotify
+    actor IO.Actor(IO.Action)
     host String
     service String
     from String = ""
@@ -22,13 +22,12 @@
     )
 
   :fun non accept(
-    actor AsioEventNotify
-    listen TCP.Listener
-    ticket TCP.Listener.AcceptTicket
+    actor IO.Actor(IO.Action)
+    ticket TCP.AcceptTicket
   )
     io = IO.CoreEngine.new_from_fd_rw(actor, ticket._fd)
     new = @_new_with_io(io)
-    new.listen = listen
+    new._listener = ticket._listener
     new
 
   :new _new_with_io(@io)
@@ -39,7 +38,11 @@
     @io.react(event, flags, arg) -> (action |
       case action == (
       | IO.Action.Closed |
-        try @listen.as!(TCP.Listener)._conn_closed
+        // If this TCP connection is the child of a TCP listener, then let
+        // the listener know that we have closed the connection.
+        // This allows the listener to keep an accurate count of how many
+        // connections have been opened so far.
+        try @_listener.as!(IO.Actor(IO.Action)).io_deferred_action(IO.Action.ClosedChild)
 
         // TODO: windows complete writes, flush-after-mute (pending writes logic from Pony)
         // | IO.Action.Write |
