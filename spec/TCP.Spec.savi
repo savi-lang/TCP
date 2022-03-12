@@ -1,8 +1,8 @@
 :actor TCP.Spec.Listener
   :is IO.Actor(IO.Action)
   :let env Env
-  :let io TCP.ListenerEngine
-  :new (@env): @io = TCP.ListenerEngine.new(@)
+  :let io TCP.Listen.Engine
+  :new (@env): @io = TCP.Listen.Engine.new(@)
 
   :be dispose: @io.close
 

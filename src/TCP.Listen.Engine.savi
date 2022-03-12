@@ -1,4 +1,4 @@
-:class TCP.ListenerEngine
+:class TCP.Listen.Engine
   :is IO.Engine(IO.Action)
 
   :let _actor IO.Actor(IO.Action)
