@@ -27,9 +27,9 @@
   :is IO.Actor(IO.Action)
   :let env Env
   :let listener TCP.Spec.Listener
-  :let io TCP.ConnectionEngine
+  :let io TCP.Engine
   :new (@env, @listener, ticket)
-    @io = TCP.ConnectionEngine.accept(@, --ticket)
+    @io = TCP.Engine.accept(@, --ticket)
     @env.err.print("[Echoer] Accepted")
 
   :fun ref _io_react(action IO.Action)
@@ -53,9 +53,9 @@
 :actor TCP.Spec.EchoClient
   :is IO.Actor(IO.Action)
   :let env Env
-  :let io TCP.ConnectionEngine
+  :let io TCP.Engine
   :new (@env, service)
-    @io = TCP.ConnectionEngine.connect(@, "localhost", service)
+    @io = TCP.Engine.connect(@, "localhost", service)
 
     // TODO: Can we make this trigger _io_react with IO.Action.OpenFailed
     // automatically via the same mechanism we will use for queuing later

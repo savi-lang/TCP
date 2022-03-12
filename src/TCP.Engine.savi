@@ -1,4 +1,4 @@
-:class TCP.ConnectionEngine
+:class TCP.Engine
   :is IO.Engine(IO.Action)
   :var io IO.CoreEngine
   :var _listener (IO.Actor(IO.Action) | None): None
