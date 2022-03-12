@@ -1,0 +1,25 @@
+:: `TCP.Listen.Auth` grants the capability to open any number of TCP listener
+:: sockets on any interfaces/ports, accepting any number of remote connections.
+::
+:: To grant the capability to open just one TCP listener socket, attenuate this
+:: capability to a `TCP.Listen.Ticket`, using the `on` method.
+:struct val TCP.Listen.Auth // TODO: use :authority instead of an empty :struct
+
+  :: Use the given `TCP.Auth` (which grants the capability for all TCP actions)
+  :: to attenuate to this lesser capability (which grants only TCP listeners).
+  :new val (auth TCP.Auth)
+
+  :: Use this capability (which grants unlimited TCP listeners) to attenuate
+  :: to a `TCP.Listen.Ticket` (which grants for only a single host and port).
+  ::
+  :: The `host` string is an indirect indicator of which interface to bind to.
+  :: For example, `"localhost"` indicates the loopback interface (allowing no
+  :: connections from remote origins), whereas `"0.0.0.0"` or `"::"` indicate
+  :: to the listener to bind on all interfaces (allowing remote connections).
+  :: If `host` is empty, the listener will bind on all interfaces.
+  ::
+  :: The `port` string may be a number string (such as `"80"`) or a named port
+  :: (such as `"http"`). See the IANA port number registry for more examples.
+  :: If `port` is an empty string, an open port will be selected arbitrarily.
+  :fun val on(host String, port String)
+    TCP.Listen.Ticket.new(@, host, port)

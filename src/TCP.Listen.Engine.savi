@@ -12,16 +12,14 @@
   :var _paused Bool: False
 
   :var listen_error OSError: OSError.None
-  :fun local_port: _NetAddress._for_fd(@_fd).port
+  :fun listen_port_number: _NetAddress._for_fd(@_fd).port // TODO: what happens if @_fd is invalid (-1)?
 
-  :new (
-    // TODO: TCP.Listener.Auth, rather than ambient authority.
-    @_actor
-    host String = ""
-    service String = "0"
-    @_limit = 0
-  )
-    event = _LibPonyOS.pony_os_listen_tcp(@_actor, host.cstring, service.cstring)
+  :new (@_actor, ticket TCP.Listen.Ticket, @_limit = 0)
+    event = _LibPonyOS.pony_os_listen_tcp(
+      @_actor
+      ticket.host.cstring
+      ticket.port.cstring
+    )
     if event.is_not_null (
       @_event = event
       @_fd = AsioEvent.fd(@_event)

@@ -1,0 +1,22 @@
+:: `TCP.Auth` grants the capability to do unlimited actions related to TCP.
+::
+:: To grant only the capability to open connections to remote hosts,
+:: attenuate this capability to `TCP.Connect.Auth` using the `connect` method.
+::
+:: To grant only the capability to bind a listener to accept connections,
+:: attenuate this capability to `TCP.Listen.Auth` using the `listen` method.
+::
+:: Both of those lesser capabilities also have ways to attenuate further to
+:: allow only a specific host and port to bind/connect to.
+:struct val TCP.Auth // TODO: use :authority instead of an empty :struct
+  :: Use the given `Env.Root` (which is the root of all authority) to
+  :: attenuate to this lesser capability (which grants only TCP actions).
+  :new val (root Env.Root)
+
+  :: Use this capability (which grants unlimited TCP actions) to attenuate
+  :: to a `TCP.Connect.Auth` (which grants only for opening connections).
+  :fun val connect: TCP.Connect.Auth.new(@)
+
+  :: Use this capability (which grants unlimited TCP actions) to attenuate
+  :: to a `TCP.Listen.Auth` (which grants only for binding listeners).
+  :fun val listen: TCP.Listen.Auth.new(@)

@@ -2,14 +2,18 @@
   :is IO.Actor(IO.Action)
   :let env Env
   :let io TCP.Listen.Engine
-  :new (@env): @io = TCP.Listen.Engine.new(@)
+  :new (@env)
+    // TODO: Why do tests hang when "localhost" is used instead of "127.0.0.1"?
+    @io = TCP.Listen.Engine.new(@
+      TCP.auth(@env.root).listen.on("127.0.0.1", "") // loopback, on any port
+    )
 
   :be dispose: @io.close
 
   :fun ref _io_react(action IO.Action)
     case action == (
     | IO.Action.Opened |
-      TCP.Spec.EchoClient.new(@env, Inspect[@io.local_port])
+      TCP.Spec.EchoClient.new(@env, Inspect[@io.listen_port_number])
       @env.err.print("[Listener] Listening")
     | IO.Action.OpenFailed |
       @env.err.print("[Listener] Not listening:")
@@ -54,8 +58,10 @@
   :is IO.Actor(IO.Action)
   :let env Env
   :let io TCP.Engine
-  :new (@env, service)
-    @io = TCP.Engine.connect(@, "localhost", service)
+  :new (@env, port)
+    @io = TCP.Engine.new(@
+      TCP.auth(@env.root).connect.to("localhost", port)
+    )
 
     // TODO: Can we make this trigger _io_react with IO.Action.OpenFailed
     // automatically via the same mechanism we will use for queuing later

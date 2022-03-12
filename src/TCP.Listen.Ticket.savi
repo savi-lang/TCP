@@ -1,0 +1,22 @@
+:: A `TCP.Listen.Ticket` grants the capability to bind a TCP listener on
+:: a specific port and host (which implies the interface to bind to).
+::
+:: To make use of the ticket, it should be passed to an actor that will use
+:: `TCP.Listen.Engine.new` to create a new engine that binds the listener and
+:: can issue `TCP.Accept.Ticket`s when new pending connections are initiated.
+:struct iso TCP.Listen.Ticket
+  :: The `host` string is an indirect indicator of which interface to bind to.
+  :: For example, `"localhost"` indicates the loopback interface (allowing no
+  :: connections from remote origins), whereas `"0.0.0.0"` or `"::"` indicate
+  :: to the listener to bind on all interfaces (allowing remote connections).
+  :: If `host` is empty, the listener will bind on all interfaces.
+  :let host String
+
+  :: The `port` string may be a number string (such as `"80"`) or a named port
+  :: (such as `"http"`). See the IANA port number registry for more examples.
+  :: If `port` is an empty string, an open port will be selected arbitrarily.
+  :let port String
+
+  :: Use the given `TCP.Listen.Auth` (whichwhich grants unlimited TCP listeners)
+  :: to issue a new ticket (which grants for only a single host and port).
+  :new iso new(auth TCP.Listen.Auth, @host, @port)

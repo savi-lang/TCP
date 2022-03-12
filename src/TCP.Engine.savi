@@ -6,32 +6,30 @@
   :let read_stream: ByteStream.Reader.new
   :let write_stream ByteStream.Writer
 
-  :fun non connect(
-    // TODO: TCPConnectionAuth, rather than ambient authority.
-    actor IO.Actor(IO.Action)
-    host String
-    service String
-    from String = ""
-  )
-    try (
-      @_new_with_io(IO.CoreEngine.new_tcp_connect!(actor, host, service, from))
+  :new (actor IO.Actor(IO.Action), ticket TCP.Connect.Ticket)
+    @io = try (
+      // TODO: The IO package shouldn't expose this unsafe interface that
+      // could be used to circumvent the capability security of the TCP package.
+      // Instead, the relevant code should be carefully moved to this package.
+      IO.CoreEngine.new_tcp_connect!(
+        actor
+        ticket.host
+        ticket.port
+        ticket.from_port
+      )
     |
-      invalid = @_new_with_io(IO.CoreEngine.new)
-      invalid.connect_error = OSError.EINVAL
-      invalid
+      @connect_error = OSError.EINVAL
+      IO.CoreEngine.new // an invalid one
     )
+    @write_stream = ByteStream.Writer.new(@io)
 
-  :fun non accept(
+  :new accept(
     actor IO.Actor(IO.Action)
     ticket TCP.Accept.Ticket
   )
-    io = IO.CoreEngine.new_from_fd_rw(actor, ticket._fd)
-    new = @_new_with_io(io)
-    new._listener = ticket._listener
-    new
-
-  :new _new_with_io(@io)
+    @io = IO.CoreEngine.new_from_fd_rw(actor, ticket._fd)
     @write_stream = ByteStream.Writer.new(@io)
+    @_listener = ticket._listener
 
   :fun ref react(event CPointer(AsioEvent), flags U32, arg U32) @
     :yields IO.Action

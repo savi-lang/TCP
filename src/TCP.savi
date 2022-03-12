@@ -1,0 +1,6 @@
+:: The `TCP` module is the namespace for this library, and is also a place
+:: for simple convenience functions that wrap other functions in the library.
+:module TCP
+  :: Use the given `Env.Root` (which is the root of all authority) to
+  :: attenuate to a `TCP.Auth` (which grants only TCP actions).
+  :fun auth(root): TCP.Auth.new(root)
