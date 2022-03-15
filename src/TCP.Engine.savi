@@ -1,0 +1,76 @@
+:class TCP.Engine
+  :is IO.Engine(IO.Action)
+  :var io IO.CoreEngine
+  :var _listener (IO.Actor(IO.Action) | None): None
+  :var connect_error OSError: OSError.None
+  :let read_stream: ByteStream.Reader.new
+  :let write_stream ByteStream.Writer
+
+  :new (actor IO.Actor(IO.Action), ticket TCP.Connect.Ticket)
+    @io = try (
+      // TODO: The IO package shouldn't expose this unsafe interface that
+      // could be used to circumvent the capability security of the TCP package.
+      // Instead, the relevant code should be carefully moved to this package.
+      IO.CoreEngine.new_tcp_connect!(
+        actor
+        ticket.host
+        ticket.port
+        ticket.from_port
+      )
+    |
+      @connect_error = OSError.EINVAL
+      IO.CoreEngine.new // an invalid one
+    )
+    @write_stream = ByteStream.Writer.new(@io)
+
+  :new accept(
+    actor IO.Actor(IO.Action)
+    ticket TCP.Accept.Ticket
+  )
+    @io = IO.CoreEngine.new_from_fd_rw(actor, ticket._fd)
+    @write_stream = ByteStream.Writer.new(@io)
+    @_listener = ticket._listener
+
+  :fun ref react(event CPointer(AsioEvent), flags U32, arg U32) @
+    :yields IO.Action
+    @io.react(event, flags, arg) -> (action |
+      case action == (
+      | IO.Action.Closed |
+        // If this TCP connection is the child of a TCP listener, then let
+        // the listener know that we have closed the connection.
+        // This allows the listener to keep an accurate count of how many
+        // connections have been opened so far.
+        try @_listener.as!(IO.Actor(IO.Action)).io_deferred_action(IO.Action.ClosedChild)
+
+        // TODO: windows complete writes, flush-after-mute (pending writes logic from Pony)
+        // | IO.Action.Write |
+        //   ...
+      )
+      yield action
+    )
+    @
+
+  :fun ref close
+    @io.close
+    @
+
+  :fun ref flush!
+    @write_stream.flush!
+
+  :fun ref pending_reads
+    :yields USize for None
+    if Platform.windows (
+      None // TODO: @_windows_complete_reads(arg)
+    |
+      @_pending_reads_unix -> (bytes_available | yield bytes_available)
+    )
+    @
+
+  :fun ref _pending_reads_unix None
+    :yields USize for None
+    while @io.is_readable (
+      try (
+        bytes_read = @read_stream.receive_from!(@io)
+        if (bytes_read > 0) (yield @read_stream.bytes_ahead_of_marker)
+      )
+    )

@@ -1,0 +1,25 @@
+:: A `TCP.Connect.Ticket` grants the capability to connect to a specific
+:: host and port using the TCP protocol.
+::
+:: To make use of the ticket, it should be passed to an actor that will use
+:: `TCP.Engine.new` to create a new engine that can be used to connect and
+:: exchange data with the remote TCP socket (if the connection succeeds).
+:struct iso TCP.Connect.Ticket
+  :: The `host` string indicates the remote host to connect to, either as an
+  :: IP address, or as a domain name to be resolved via DNS.
+  :: If `host` is empty, localhost (the loopback interface) will be targeted.
+  :let host String
+
+  :: The `port` string may be a number string (such as `"80"`) or a named port
+  :: (such as `"http"`). See the IANA port number registry for more examples.
+  :let port String
+
+  :: The `from_port`, if given, indicates the local port to bind to.
+  :: This is not usually necessary, but may be used if the remote side is
+  :: expected to validate the port that the connection comes from.
+  :: If `from_port` is left empty, an open port will be selected arbitrarily.
+  :let from_port String
+
+  :: Use the given `TCP.Connect.Auth` (which grants unlimited TCP connections)
+  :: to issue a new ticket (which grants for only a single host and port).
+  :new iso new(auth TCP.Connect.Auth, @host, @port, @from_port = "")

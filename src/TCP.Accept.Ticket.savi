@@ -1,0 +1,32 @@
+:: A `TCP.Accept.Ticket` grants the capability to accept an incoming connection.
+:: It is granted by `TCP.Listen.Engine.pending_connections` when there is
+:: a remote TCP sockets attempting to connect to the listener.
+::
+:: If the ticket-holder wishes to accept the connection, it should be passed
+:: to an actor that will use `TCP.Engine.accept` to create a new engine
+:: that can be used to exchange data with the remote TCP socket.
+::
+:: If the ticket-holder does not wish to accept the connection, it must be
+:: explicitly rejected using the `reject` method, which consumes the ticket
+:: and frees up resources associated with the attempted connection.
+:struct iso TCP.Accept.Ticket
+  :let _listener IO.Actor(IO.Action)
+  :let _fd U32
+  :new iso _new(@_listener, @_fd)
+
+  // TODO: This struct should allow inspecting information about the
+  // attempted connection, such as the remote IP address, for example.
+  // This would allow the ticket-holder to make an informed decision
+  // to either accept or reject the connection based on that information.
+
+  :: Reject this attempted connection instead of accepting it into an engine.
+  ::
+  :: This destroys the ticket, closes the underlying socket, and notifies
+  :: the listener that the count of open connections has reduced by one.
+  ::
+  :: If you fail to accept the ticket into an engine, you must call this
+  :: method. Otherwise these resources will not be freed up, and as a result,
+  :: your program will eventually be unable to accept additional sockets.
+  :fun iso reject
+    @_listener.io_deferred_action(IO.Action.ClosedChild)
+    _LibPonyOS.pony_os_socket_close(@_fd)

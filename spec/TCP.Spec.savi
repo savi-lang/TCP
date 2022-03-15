@@ -1,0 +1,105 @@
+:actor TCP.Spec.Listener
+  :is IO.Actor(IO.Action)
+  :let env Env
+  :let io TCP.Listen.Engine
+  :new (@env)
+    // TODO: Why do tests hang when "localhost" is used instead of "127.0.0.1"?
+    @io = TCP.Listen.Engine.new(@
+      TCP.auth(@env.root).listen.on("127.0.0.1", "") // loopback, on any port
+    )
+
+  :be dispose: @io.close
+
+  :fun ref _io_react(action IO.Action)
+    case action == (
+    | IO.Action.Opened |
+      TCP.Spec.EchoClient.new(@env, Inspect[@io.listen_port_number])
+      @env.err.print("[Listener] Listening")
+    | IO.Action.OpenFailed |
+      @env.err.print("[Listener] Not listening:")
+      @env.err.print(@io.listen_error.name)
+    | IO.Action.Read |
+      @io.pending_connections -> (ticket |
+        TCP.Spec.Echoer.new(@env, @, --ticket)
+      )
+    | IO.Action.Closed |
+      @env.err.print("[Listener] Stopped listening")
+    )
+    @
+
+:actor TCP.Spec.Echoer
+  :is IO.Actor(IO.Action)
+  :let env Env
+  :let listener TCP.Spec.Listener
+  :let io TCP.Engine
+  :new (@env, @listener, ticket)
+    @io = TCP.Engine.accept(@, --ticket)
+    @env.err.print("[Echoer] Accepted")
+
+  :fun ref _io_react(action IO.Action)
+    case action == (
+    | IO.Action.Read |
+      @io.pending_reads -> (bytes_available |
+        @io.read_stream.advance_to_end
+        bytes val = @io.read_stream.extract_token
+        @env.err.print("[Echoer] Received:")
+        @env.err.print(bytes.as_string)
+        @io.write_stream << bytes.clone // TODO: is clone still needed?
+        try @io.flush! // TODO: should we flush automatically on close below?
+        @io.close
+      )
+    | IO.Action.Closed |
+      @env.err.print("[Echoer] Closed")
+      @listener.dispose // ask the listener to close too
+    )
+    @
+
+:actor TCP.Spec.EchoClient
+  :is IO.Actor(IO.Action)
+  :let env Env
+  :let io TCP.Engine
+  :new (@env, port)
+    @io = TCP.Engine.new(@
+      TCP.auth(@env.root).connect.to("localhost", port)
+    )
+
+    // TODO: Can we make this trigger _io_react with IO.Action.OpenFailed
+    // automatically via the same mechanism we will use for queuing later
+    // pending reads, instead of checking for this error case here?
+    if (@io.connect_error != OSError.None) (
+      @env.err.print("[EchoClient] Failed to connect:")
+      @env.err.print(@io.connect_error.name)
+    )
+
+  :fun ref _io_react(action IO.Action)
+    case action == (
+    | IO.Action.Opened |
+      @env.err.print("[EchoClient] Connected")
+      @io.write_stream << b"Hello, World!"
+      try @io.flush!
+
+    | IO.Action.OpenFailed |
+      @env.err.print("[EchoClient] Failed to connect:")
+      @env.err.print(@io.connect_error.name)
+
+    | IO.Action.Read |
+      @io.pending_reads -> (bytes_available |
+        if (bytes_available >= b"Hello, World!".size) (
+          @io.read_stream.advance_to_end
+          @env.err.print("[EchoClient] Received:")
+          @env.err.print(@io.read_stream.extract_token.as_string)
+          @io.close
+        )
+      )
+
+    | IO.Action.Closed |
+      @env.err.print("[EchoClient] Closed")
+    )
+    @
+
+:class TCP.Spec
+  :is Spec
+  :const describes: "TCP"
+
+  :it "can listen, connect, send, respond, disconnect, and stop listening"
+    TCP.Spec.Listener.new(@env)
