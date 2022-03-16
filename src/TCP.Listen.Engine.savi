@@ -46,7 +46,7 @@
 
   :fun ref pending_connections
     :yields TCP.Accept.Ticket for None
-    if Platform.windows (
+    if Platform.is_windows (
       None // TODO
     |
       if @_closed.not (
@@ -84,7 +84,7 @@
   :fun ref close
     if (@_closed.not && @_event.is_not_null) (
       // When not on windows, unsubscribe immediately here instead of later.
-      if Platform.windows.not AsioEvent.unsubscribe(@_event)
+      if Platform.is_windows.not AsioEvent.unsubscribe(@_event)
 
       _LibPonyOS.pony_os_socket_close(@_fd)
       @_fd = -1
