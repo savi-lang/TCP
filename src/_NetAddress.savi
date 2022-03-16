@@ -21,7 +21,7 @@
   :fun scope:     _LibC.ntohl(@_scope) // (converted to host byte order)
   :fun ipv4_addr: _LibC.ntohl(@_ipv4) // (converted to host byte order)
   // TODO: ipv6_addr (needs tuple return value)
-  // TODO: family (needs Platform.big_endian)
+  // TODO: family (needs Platform.is_big_endian)
 
   :fun "=="(other _NetAddress'box)
     @_family == other._family

@@ -1,8 +1,8 @@
-:ffi _LibC
+:ffimodule _LibC
   :fun ntohs(network_short U16) U16
   :fun ntohl(network_long U32) U32
 
-:ffi _LibPonyOS
+:ffimodule _LibPonyOS
   :fun pony_os_listen_tcp(owner AsioEventNotify, host CPointer(U8), service CPointer(U8)) CPointer(AsioEvent)
   :fun pony_os_accept(event CPointer(AsioEvent)) U32
   :fun pony_os_socket_close(fd U32) None

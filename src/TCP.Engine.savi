@@ -59,7 +59,7 @@
 
   :fun ref pending_reads
     :yields USize for None
-    if Platform.windows (
+    if Platform.is_windows (
       None // TODO: @_windows_complete_reads(arg)
     |
       @_pending_reads_unix -> (bytes_available | yield bytes_available)
