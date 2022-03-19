@@ -31,9 +31,9 @@
     @write_stream = ByteStream.Writer.new(@io)
     @_listener = ticket._listener
 
-  :fun ref react(event CPointer(AsioEvent), flags U32, arg U32) @
+  :fun ref react(event AsioEvent) @
     :yields IO.Action
-    @io.react(event, flags, arg) -> (action |
+    @io.react(event) -> (action |
       case action == (
       | IO.Action.Closed |
         // If this TCP connection is the child of a TCP listener, then let

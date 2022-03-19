@@ -10,7 +10,7 @@
 
   :be dispose: @io.close
 
-  :fun ref _io_react(action IO.Action)
+  :fun ref io_react(action IO.Action)
     case action == (
     | IO.Action.Opened |
       TCP.Spec.EchoClient.new(@env, Inspect[@io.listen_port_number])
@@ -36,7 +36,7 @@
     @io = TCP.Engine.accept(@, --ticket)
     @env.err.print("[Echoer] Accepted")
 
-  :fun ref _io_react(action IO.Action)
+  :fun ref io_react(action IO.Action)
     case action == (
     | IO.Action.Read |
       @io.pending_reads -> (bytes_available |
@@ -63,7 +63,7 @@
       TCP.auth(@env.root).connect.to("localhost", port)
     )
 
-    // TODO: Can we make this trigger _io_react with IO.Action.OpenFailed
+    // TODO: Can we make this trigger io_react with IO.Action.OpenFailed
     // automatically via the same mechanism we will use for queuing later
     // pending reads, instead of checking for this error case here?
     if (@io.connect_error != OSError.None) (
@@ -71,7 +71,7 @@
       @env.err.print(@io.connect_error.name)
     )
 
-  :fun ref _io_react(action IO.Action)
+  :fun ref io_react(action IO.Action)
     case action == (
     | IO.Action.Opened |
       @env.err.print("[EchoClient] Connected")
