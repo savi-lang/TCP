@@ -1,0 +1,12 @@
+:module _FFI
+  :ffi pony_asio_event_fd(event AsioEvent.ID) U32
+  :ffi pony_asio_event_unsubscribe(event AsioEvent.ID) None
+  :ffi pony_asio_event_destroy(event AsioEvent.ID) None
+
+  :ffi pony_os_listen_tcp(owner AsioEvent.Actor, host CPointer(U8), service CPointer(U8)) AsioEvent.ID
+  :ffi pony_os_accept(event AsioEvent.ID) U32
+  :ffi pony_os_socket_close(fd U32) None
+  :ffi pony_os_errno OSError
+  :ffi pony_os_sockname(fd U32, net_addr _NetAddress'ref) None
+  :ffi pony_os_ipv4(net_addr _NetAddress'box) Bool
+  :ffi pony_os_ipv6(net_addr _NetAddress'box) Bool

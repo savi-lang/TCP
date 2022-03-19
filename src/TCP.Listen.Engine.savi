@@ -3,7 +3,7 @@
 
   :let _actor IO.Actor(IO.Action)
   :var _fd U32: -1
-  :var _event CPointer(AsioEvent): CPointer(AsioEvent).null
+  :var _event_id AsioEvent.ID: CPointer(AsioEvent.ID.Opaque).null // TODO: AsioEvent.ID.null
 
   :var _count USize: 0
   :var _limit USize
@@ -15,30 +15,30 @@
   :fun listen_port_number: _NetAddress._for_fd(@_fd).port // TODO: what happens if @_fd is invalid (-1)?
 
   :new (@_actor, ticket TCP.Listen.Ticket, @_limit = 0)
-    event = _LibPonyOS.pony_os_listen_tcp(
+    event = _FFI.pony_os_listen_tcp(
       @_actor
       ticket.host.cstring
       ticket.port.cstring
     )
     if event.is_not_null (
-      @_event = event
-      @_fd = AsioEvent.fd(@_event)
+      @_event_id = event
+      @_fd = _FFI.pony_asio_event_fd(@_event_id)
       @_actor.io_deferred_action(IO.Action.Opened)
     |
-      @listen_error = _LibPonyOS.pony_os_errno
+      @listen_error = _FFI.pony_os_errno
       @_closed = True
       @_actor.io_deferred_action(IO.Action.OpenFailed)
     )
 
   // TODO: Delegate much of the AsioEvent internals to an `IO.CoreEngine`.
-  :fun ref react(event CPointer(AsioEvent), flags U32, arg U32) @
-    if (@_event === event) (
-      if AsioEvent.is_readable(flags) (
+  :fun ref react(event AsioEvent) @
+    if (event.id === @_event_id) (
+      if event.is_readable (
         yield IO.Action.Read
       )
-      if AsioEvent.is_disposable(flags) (
-        AsioEvent.destroy(@_event)
-        @_event = CPointer(AsioEvent).null
+      if event.is_disposable (
+        _FFI.pony_asio_event_destroy(@_event_id)
+        @_event_id = CPointer(AsioEvent.ID.Opaque).null // TODO: AsioEvent.ID.null
         yield IO.Action.Closed
       )
     )
@@ -52,7 +52,7 @@
       if @_closed.not (
         try (
           while (@_limit == 0 || @_count < @_limit) (
-            conn_fd = _LibPonyOS.pony_os_accept(@_event)
+            conn_fd = _FFI.pony_os_accept(@_event_id)
             case conn_fd == (
             |  0 | error! // EWOULDBLOCK, don't try again
             | -1 | None   // Some other error, so we can try again
@@ -82,11 +82,11 @@
     @
 
   :fun ref close
-    if (@_closed.not && @_event.is_not_null) (
+    if (@_closed.not && @_event_id.is_not_null) (
       // When not on windows, unsubscribe immediately here instead of later.
-      if Platform.is_windows.not AsioEvent.unsubscribe(@_event)
+      if Platform.is_windows.not _FFI.pony_asio_event_unsubscribe(@_event_id)
 
-      _LibPonyOS.pony_os_socket_close(@_fd)
+      _FFI.pony_os_socket_close(@_fd)
       @_fd = -1
     )
     @

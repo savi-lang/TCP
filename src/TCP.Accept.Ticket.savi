@@ -29,4 +29,4 @@
   :: your program will eventually be unable to accept additional sockets.
   :fun iso reject
     @_listener.io_deferred_action(IO.Action.ClosedChild)
-    _LibPonyOS.pony_os_socket_close(@_fd)
+    _FFI.pony_os_socket_close(@_fd)
