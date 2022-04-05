@@ -19,7 +19,7 @@
       )
     |
       @connect_error = OSError.EINVAL
-      IO.CoreEngine.new // an invalid one
+      IO.CoreEngine.new(AsioEvent.ID.null) // an invalid one
     )
     @write_stream = ByteStream.Writer.new(@io)
 
@@ -27,9 +27,18 @@
     actor IO.Actor(IO.Action)
     ticket TCP.Accept.Ticket
   )
-    @io = IO.CoreEngine.new_from_fd_rw(actor, ticket._fd)
+    @io = IO.CoreEngine.new(
+      _FFI.pony_asio_event_create(actor, ticket._fd, @_asio_flags, 0, True)
+    )
     @write_stream = ByteStream.Writer.new(@io)
     @_listener = ticket._listener
+
+  :fun non _asio_flags
+    if Platform.is_windows (
+      AsioEvent.Flags.read_write
+    |
+      AsioEvent.Flags.read_write_oneshot
+    )
 
   :fun ref react(event AsioEvent) @
     :yields IO.Action
