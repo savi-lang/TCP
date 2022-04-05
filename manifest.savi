@@ -12,6 +12,9 @@
   :dependency OSError v0
     :from "github:savi-lang/OSError"
 
+  :dependency IPAddress v0
+    :from "github:savi-lang/IPAddress"
+
 :manifest bin "spec"
   :copies TCP
   :sources "spec/*.savi"

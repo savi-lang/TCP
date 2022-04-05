@@ -1,8 +1,4 @@
-
-
-:class val _NetAddress
-  :is Equatable(_NetAddress)
-
+:class val _NetAddress // TODO: make this a struct after patching the runtime to not assume a class
   :let _family U16: 0
   :let _port   U16: 0 :: Port number in network byte order.
   :let _ipv4   U32: 0 :: Bits for an IPv4 address in network byte order.
@@ -12,28 +8,27 @@
   :let _ipv6d  U32: 0 :: Bits 97-128 of an IPv6 address in network byte order.
   :let _scope  U32: 0 :: IPv6 scope (unicast, anycast, multicast, etc...).
 
-  :new _for_fd(fd): _FFI.pony_os_sockname(fd, @)
+  :new _for_fd(fd):      _FFI.pony_os_sockname(fd, @)
+  :new _for_fd_peer(fd): _FFI.pony_os_peername(fd, @)
 
   :fun is_ipv4: _FFI.pony_os_ipv4(@)
   :fun is_ipv6: _FFI.pony_os_ipv6(@)
 
-  :fun port:      @_port.be_to_native  // (converted to host byte order)
-  :fun scope:     @_scope.be_to_native // (converted to host byte order)
-  :fun ipv4_addr: @_ipv4.be_to_native  // (converted to host byte order)
-  // TODO: ipv6_addr
-  // TODO: family
+  :fun port_number: @_port.be_to_native
 
-  :fun "=="(other _NetAddress'box)
-    @_family == other._family
-    && @_port == other._port
-    && (
-      if @is_ipv4 (
-        @_ipv4 == other._ipv4
-      |
-        @_ipv6a == other._ipv6a
-        && @_ipv6b == other._ipv6b
-        && @_ipv6c == other._ipv6c
-        && @_ipv6d == other._ipv6d
+  :fun ip_address
+    if @is_ipv4 (
+      IPAddress.new_v4_raw(@_ipv4.be_to_native)
+    |
+      IPAddress.new_v6_raw(
+        @_ipv6a.be_to_native.u64.bit_shl(32).bit_or(
+          @_ipv6b.be_to_native.u64
+        )
+        @_ipv6c.be_to_native.u64.bit_shl(32).bit_or(
+          @_ipv6d.be_to_native.u64
+        )
       )
     )
-    && @_scope == other._scope
+
+  :fun ip_address_with_port_number
+    @ip_address.with_port_number(@port_number)
