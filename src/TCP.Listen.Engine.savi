@@ -3,7 +3,7 @@
 
   :let _actor IO.Actor(IO.Action)
   :var _fd U32: -1
-  :var _event_id AsioEvent.ID: CPointer(AsioEvent.ID.Opaque).null // TODO: AsioEvent.ID.null
+  :var _event_id AsioEvent.ID: AsioEvent.ID.null
 
   :var _count USize: 0
   :var _limit USize
@@ -12,7 +12,23 @@
   :var _paused Bool: False
 
   :var listen_error OSError: OSError.None
-  :fun listen_port_number: _NetAddress._for_fd(@_fd).port // TODO: what happens if @_fd is invalid (-1)?
+
+  :: Get the local `IPAddress` of the listener.
+  :: Raises an error if the listener is not currently listening.
+  :fun listen_address!: @_listen_netaddr!.ip_address
+
+  :: Get the local port number of the listener.
+  :: Raises an error if the listener is not currently listening.
+  :fun listen_port_number!: @_listen_netaddr!.port_number
+
+  :: Get the local `IPAddress.WithPortNumber` of the listener.
+  :: Raises an error if the listener is not currently listening.
+  :fun listen_address_with_port_number!
+    @_listen_netaddr!.ip_address_with_port_number
+
+  :fun _listen_netaddr!
+    error! if (@_fd == -1)
+    _NetAddress._for_fd(@_fd)
 
   :new (@_actor, ticket TCP.Listen.Ticket, @_limit = 0)
     event = _FFI.pony_os_listen_tcp(
@@ -38,7 +54,7 @@
       )
       if event.is_disposable (
         _FFI.pony_asio_event_destroy(@_event_id)
-        @_event_id = CPointer(AsioEvent.ID.Opaque).null // TODO: AsioEvent.ID.null
+        @_event_id = AsioEvent.ID.null
         yield IO.Action.Closed
       )
     )

@@ -27,6 +27,7 @@
     actor IO.Actor(IO.Action)
     ticket TCP.Accept.Ticket
   )
+    actor.io_deferred_action(IO.Action.Opened)
     @io = IO.CoreEngine.new(
       _FFI.pony_asio_event_create(actor, ticket._fd, @_asio_flags, 0, True)
     )
@@ -83,3 +84,37 @@
         if (bytes_read > 0) (yield @read_stream.bytes_ahead_of_marker)
       )
     )
+
+  :: Get the local `IPAddress` of this side of the connection.
+  :: Raises an error if the connection is not currently open.
+  :fun local_address!: @_local_netaddr!.ip_address
+
+  :: Get the local port number of this side of the connection.
+  :: Raises an error if the connection is not currently open.
+  :fun local_port_number!: @_local_netaddr!.port_number
+
+  :: Get the local `IPAddress.WithPortNumber` of this side of the connection.
+  :: Raises an error if the connection is not currently open.
+  :fun local_address_with_port_number!
+    @_local_netaddr!.ip_address_with_port_number
+
+  :fun _local_netaddr!
+    error! if @io.event_id.is_null
+    _NetAddress._for_fd(_FFI.pony_asio_event_fd(@io.event_id))
+
+  :: Get the `IPAddress` of the remote socket.
+  :: Raises an error if the connection is not currently open.
+  :fun remote_address!: @_remote_netaddr!.ip_address
+
+  :: Get the port number of the remote socket.
+  :: Raises an error if the connection is not currently open.
+  :fun remote_port_number!: @_remote_netaddr!.port_number
+
+  :: Get the `IPAddress.WithPortNumber` of the remote socket.
+  :: Raises an error if the connection is not currently open.
+  :fun remote_address_with_port_number!
+    @_remote_netaddr!.ip_address_with_port_number
+
+  :fun _remote_netaddr!
+    error! if @io.event_id.is_null
+    _NetAddress._for_fd_peer(_FFI.pony_asio_event_fd(@io.event_id))

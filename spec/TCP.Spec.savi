@@ -13,8 +13,13 @@
   :fun ref io_react(action IO.Action)
     case action == (
     | IO.Action.Opened |
-      TCP.Spec.EchoClient.new(@env, Inspect[@io.listen_port_number])
-      @env.err.print("[Listener] Listening")
+      try (
+        listen_address = @io.listen_address_with_port_number!
+        @env.err.print("[Listener] Listening on \(listen_address)")
+        TCP.Spec.EchoClient.new(@env, "\(listen_address.port_number)")
+      |
+        @env.err.print("[Listener] Failed to get listen address")
+      )
     | IO.Action.OpenFailed |
       @env.err.print("[Listener] Not listening:")
       @env.err.print(@io.listen_error.name)
@@ -33,18 +38,27 @@
   :let listener TCP.Spec.Listener
   :let io TCP.Engine
   :new (@env, @listener, ticket)
+    remote_address = ticket.remote_address_with_port_number
+    @env.err.print("[Echoer] Accepting \(remote_address)")
     @io = TCP.Engine.accept(@, --ticket)
-    @env.err.print("[Echoer] Accepted")
 
   :fun ref io_react(action IO.Action)
     case action == (
+    | IO.Action.Opened |
+      try (
+        local_address = @io.local_address_with_port_number!
+        remote_address = @io.remote_address_with_port_number!
+        @env.err.print(
+          "[Echoer] Accepted from \(remote_address) on \(local_address)"
+        )
+      |
+        @env.err.print("[Echoer] Failed to get local and/or remote address")
+      )
     | IO.Action.Read |
       @io.pending_reads -> (bytes_available |
-        @io.read_stream.advance_to_end
-        bytes val = @io.read_stream.extract_token
-        @env.err.print("[Echoer] Received:")
-        @env.err.print(bytes.as_string)
-        @io.write_stream << bytes.clone // TODO: is clone still needed?
+        bytes val = @io.read_stream.extract_all
+        @env.err.print("[Echoer] Received: \(Inspect[bytes])")
+        @io.write_stream << bytes
         try @io.flush! // TODO: should we flush automatically on close below?
         @io.close
       )
@@ -74,7 +88,15 @@
   :fun ref io_react(action IO.Action)
     case action == (
     | IO.Action.Opened |
-      @env.err.print("[EchoClient] Connected")
+      try (
+        local_address = @io.local_address_with_port_number!
+        remote_address = @io.remote_address_with_port_number!
+        @env.err.print(
+          "[EchoClient] Connected from \(local_address) to \(remote_address)"
+        )
+      |
+        @env.err.print("[EchoClient] Failed to get local and/or remote address")
+      )
       @io.write_stream << b"Hello, World!"
       try @io.flush!
 
@@ -85,9 +107,8 @@
     | IO.Action.Read |
       @io.pending_reads -> (bytes_available |
         if (bytes_available >= b"Hello, World!".size) (
-          @io.read_stream.advance_to_end
-          @env.err.print("[EchoClient] Received:")
-          @env.err.print(@io.read_stream.extract_token.as_string)
+          bytes val = @io.read_stream.extract_all
+          @env.err.print("[EchoClient] Received: \(Inspect[bytes])")
           @io.close
         )
       )

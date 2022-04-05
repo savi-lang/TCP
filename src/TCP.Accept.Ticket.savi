@@ -14,10 +14,15 @@
   :let _fd U32
   :new iso _new(@_listener, @_fd)
 
-  // TODO: This struct should allow inspecting information about the
-  // attempted connection, such as the remote IP address, for example.
-  // This would allow the ticket-holder to make an informed decision
-  // to either accept or reject the connection based on that information.
+  :: Get the `IPAddress` of the remote socket.
+  :fun remote_address: _NetAddress._for_fd_peer(@_fd).ip_address
+
+  :: Get the port number of the remote socket.
+  :fun remote_port_number: _NetAddress._for_fd_peer(@_fd).port_number
+
+  :: Get the `IPAddress.WithPortNumber` of the remote socket.
+  :fun remote_address_with_port_number
+    _NetAddress._for_fd_peer(@_fd).ip_address_with_port_number
 
   :: Reject this attempted connection instead of accepting it into an engine.
   ::
