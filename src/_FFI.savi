@@ -7,6 +7,7 @@
   :ffi pony_asio_event_unsubscribe(event AsioEvent.ID) None
   :ffi pony_asio_event_destroy(event AsioEvent.ID) None
 
+  :ffi pony_os_connect_tcp(owner AsioEvent.Actor, host CPointer(U8), service CPointer(U8), from CPointer(U8), asio_flags U32) I32
   :ffi pony_os_listen_tcp(owner AsioEvent.Actor, host CPointer(U8), service CPointer(U8)) AsioEvent.ID
   :ffi pony_os_accept(event AsioEvent.ID) U32
   :ffi pony_os_socket_close(fd U32) None
