@@ -2,37 +2,9 @@
   :is IO.Engine(IO.Action)
   :var io IO.CoreEngine
   :var _listener (IO.Actor(IO.Action) | None): None
-  :var connect_error OSError: OSError.None
+  :var _pending_connect_count I32: 0
   :let read_stream: ByteStream.Reader.new
   :let write_stream ByteStream.Writer
-
-  :new (actor IO.Actor(IO.Action), ticket TCP.Connect.Ticket)
-    @io = try (
-      // TODO: The IO package shouldn't expose this unsafe interface that
-      // could be used to circumvent the capability security of the TCP package.
-      // Instead, the relevant code should be carefully moved to this package.
-      IO.CoreEngine.new_tcp_connect!(
-        actor
-        ticket.host
-        ticket.port
-        ticket.from_port
-      )
-    |
-      @connect_error = OSError.EINVAL
-      IO.CoreEngine.new(AsioEvent.ID.null) // an invalid one
-    )
-    @write_stream = ByteStream.Writer.new(@io)
-
-  :new accept(
-    actor IO.Actor(IO.Action)
-    ticket TCP.Accept.Ticket
-  )
-    actor.io_deferred_action(IO.Action.Opened)
-    @io = IO.CoreEngine.new(
-      _FFI.pony_asio_event_create(actor, ticket._fd, @_asio_flags, 0, True)
-    )
-    @write_stream = ByteStream.Writer.new(@io)
-    @_listener = ticket._listener
 
   :fun non _asio_flags
     if Platform.is_windows (
@@ -41,8 +13,66 @@
       AsioEvent.Flags.read_write_oneshot
     )
 
+  :: Create a new TCP engine based on an outbound connection.
+  ::
+  :: The given `ticket` specifies the connection details, and also proves
+  :: (via capability security) that the caller has authority to connect.
+  :new (actor IO.Actor(IO.Action), ticket TCP.Connect.Ticket)
+    // Begin with an "empty" IO core engine - we'll fill it later
+    // after one of the attempted TCP connections succeeds.
+    @io = IO.CoreEngine.new(AsioEvent.ID.null)
+    @write_stream = ByteStream.Writer.new(@io)
+
+    // If IPv4 and IPv6 resolutions are both possible, the runtime will try to
+    // connect with both parallel; we'll later adopt whichever succeeds first.
+    @_pending_connect_count = _FFI.pony_os_connect_tcp(
+      actor
+      ticket.host.cstring, ticket.port.cstring, ticket.from_port.cstring
+      @_asio_flags
+    )
+
+    // If we failed to resolve any valid connection attempts, send the actor
+    // a later IO action that will let it know that connection has failed.
+    if (@_pending_connect_count == 0) (
+      actor.io_deferred_action(IO.Action.OpenFailed)
+    )
+
+  :: Create a new TCP engine based on an accepting an inbound connection.
+  ::
+  :: The given `ticket` is a single-use capability that originated in a
+  :: `TCP.Listen.Engine` that had an incoming connection available to accept.
+  :new accept(actor IO.Actor(IO.Action), ticket TCP.Accept.Ticket)
+    actor.io_deferred_action(IO.Action.Opened)
+    @io = IO.CoreEngine.new(
+      _FFI.pony_asio_event_create(actor, ticket._fd, @_asio_flags, 0, True)
+    )
+    @write_stream = ByteStream.Writer.new(@io)
+    @_listener = ticket._listener
+
   :fun ref react(event AsioEvent) @
     :yields IO.Action
+    // If we haven't adopted an event yet, and this one is ready to be adopted,
+    // try to adopt it now, as we expect it is one of our pending connections.
+    if (@io.is_waiting_to_open && event.is_writable) (
+      try (
+        @_pending_connect_count -= 1
+        @io.adopt_event!(event)
+        yield IO.Action.Opened
+      |
+        // We failed to adopt it because it was a failed connection attempt.
+        // If there are no more pending connection attempts, our last one has
+        // failed and we have no choice but to admit final failure.
+        if (@_pending_connect_count == 0) (
+          yield IO.Action.OpenFailed
+        )
+
+        // Return early because we don't want to do anything with this event
+        // after having failed to adopt it already.
+        return @
+      )
+    )
+
+    // Now, pass the event to the inner engine and react to its yielded actions.
     @io.react(event) -> (action |
       case action == (
       | IO.Action.Closed |
@@ -67,6 +97,7 @@
         yield action
       )
     )
+
     @
 
   :fun ref close

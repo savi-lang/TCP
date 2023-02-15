@@ -77,14 +77,6 @@
       TCP.auth(@env.root).connect.to("localhost", port)
     )
 
-    // TODO: Can we make this trigger io_react with IO.Action.OpenFailed
-    // automatically via the same mechanism we will use for queuing later
-    // pending reads, instead of checking for this error case here?
-    if (@io.connect_error != OSError.None) (
-      @env.err.print("[EchoClient] Failed to connect:")
-      @env.err.print(@io.connect_error.name)
-    )
-
   :fun ref io_react(action IO.Action)
     case action == (
     | IO.Action.Opened |
@@ -101,8 +93,7 @@
       try @io.flush!
 
     | IO.Action.OpenFailed |
-      @env.err.print("[EchoClient] Failed to connect:")
-      @env.err.print(@io.connect_error.name)
+      @env.err.print("[EchoClient] Failed to connect.")
 
     | IO.Action.Read |
       if (@io.read_stream.bytes_ahead_of_marker >= b"Hello, World!".size) (
