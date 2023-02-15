@@ -54,14 +54,14 @@
       |
         @env.err.print("[Echoer] Failed to get local and/or remote address")
       )
+
     | IO.Action.Read |
-      @io.pending_reads -> (bytes_available |
-        bytes val = @io.read_stream.extract_all
-        @env.err.print("[Echoer] Received: \(Inspect[bytes])")
-        @io.write_stream << bytes
-        try @io.flush! // TODO: should we flush automatically on close below?
-        @io.close
-      )
+      bytes val = @io.read_stream.extract_all
+      @env.err.print("[Echoer] Received: \(Inspect[bytes])")
+      @io.write_stream << bytes
+      try @io.flush! // TODO: should we flush automatically on close below?
+      @io.close
+
     | IO.Action.Closed |
       @env.err.print("[Echoer] Closed")
       @listener.dispose // ask the listener to close too
@@ -105,12 +105,10 @@
       @env.err.print(@io.connect_error.name)
 
     | IO.Action.Read |
-      @io.pending_reads -> (bytes_available |
-        if (bytes_available >= b"Hello, World!".size) (
-          bytes val = @io.read_stream.extract_all
-          @env.err.print("[EchoClient] Received: \(Inspect[bytes])")
-          @io.close
-        )
+      if (@io.read_stream.bytes_ahead_of_marker >= b"Hello, World!".size) (
+        bytes val = @io.read_stream.extract_all
+        @env.err.print("[EchoClient] Received: \(Inspect[bytes])")
+        @io.close
       )
 
     | IO.Action.Closed |

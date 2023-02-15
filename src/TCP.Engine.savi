@@ -51,12 +51,21 @@
         // This allows the listener to keep an accurate count of how many
         // connections have been opened so far.
         try @_listener.as!(IO.Actor(IO.Action)).io_deferred_action(IO.Action.ClosedChild)
+        yield action
 
-        // TODO: windows complete writes, flush-after-mute (pending writes logic from Pony)
-        // | IO.Action.Write |
-        //   ...
+      | IO.Action.Read |
+        if Platform.is_windows (
+          None // TODO: @_windows_complete_reads(arg)
+        |
+          @_pending_reads_unix -> (yield action)
+        )
+
+      // TODO: windows complete writes, flush-after-mute (pending writes logic from Pony)
+      // | IO.Action.Write |
+      //   ...
+      |
+        yield action
       )
-      yield action
     )
     @
 
@@ -67,21 +76,27 @@
   :fun ref flush!
     @write_stream.flush!
 
+  // TODO: Remove this deprecated method.
+  :: DEPRECATED: There's no need for this method anymore.
+  :: Loading pending reads into the read stream will now be handled
+  :: automatically by the TCP engine, which will yield an `IO.Action.Read`
+  :: action for each time a pending read is completed.
+  ::
+  :: So you can just remove this function call from your code and de-indent
+  :: the body of your yield block, such that it becomes part of the outer code.
+  :: If you need to know the number of bytes available, then you can call
+  :: `io.read_stream.bytes_ahead_of_marker` to find out.
   :fun ref pending_reads
     :yields USize for None
-    if Platform.is_windows (
-      None // TODO: @_windows_complete_reads(arg)
-    |
-      @_pending_reads_unix -> (bytes_available | yield bytes_available)
-    )
+    yield @read_stream.bytes_ahead_of_marker
     @
 
   :fun ref _pending_reads_unix None
-    :yields USize for None
+    :yields None for None
     while @io.is_readable (
       try (
         bytes_read = @read_stream.receive_from!(@io)
-        if (bytes_read > 0) (yield @read_stream.bytes_ahead_of_marker)
+        if (bytes_read > 0) (yield None)
       )
     )
 
