@@ -93,6 +93,20 @@
       // TODO: windows complete writes, flush-after-mute (pending writes logic from Pony)
       // | IO.Action.Write |
       //   ...
+
+      | IO.Action.NotHandled |
+        // If the underlying engine didn't want to handle this event, it means
+        // this is likely a later connection attempt after we already had one.
+        // If we have more connection attempts pending, we'll unsubscribe it.
+        if (@_pending_connect_count > 0) (
+          @_pending_connect_count -= 1
+          _FFI.pony_asio_event_unsubscribe(event.id)
+        |
+          // If we have no more pending connection attempts, pass the buck to
+          // the caller to figure out what needs to be done with this event.
+          // Maybe they have another engine sharing the same IO actor, perhaps.
+          yield action
+        )
       |
         yield action
       )
