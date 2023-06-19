@@ -33,7 +33,7 @@
 
     // If we failed to resolve any valid connection attempts, send the actor
     // a later IO action that will let it know that connection has failed.
-    if (@_pending_connect_count == 0) (
+    if @_pending_connect_count == 0 (
       actor.io_deferred_action(IO.Action.OpenFailed)
     )
 
@@ -53,7 +53,7 @@
     :yields IO.Action
     // If we haven't adopted an event yet, and this one is ready to be adopted,
     // try to adopt it now, as we expect it is one of our pending connections.
-    if (@io.is_waiting_to_open && event.is_writable) (
+    if @io.is_waiting_to_open && event.is_writable (
       try (
         @_pending_connect_count -= 1
         @io.adopt_event!(event)
@@ -62,7 +62,7 @@
         // We failed to adopt it because it was a failed connection attempt.
         // If there are no more pending connection attempts, our last one has
         // failed and we have no choice but to admit final failure.
-        if (@_pending_connect_count == 0) (
+        if @_pending_connect_count == 0 (
           yield IO.Action.OpenFailed
         )
 
@@ -98,7 +98,7 @@
         // If the underlying engine didn't want to handle this event, it means
         // this is likely a later connection attempt after we already had one.
         // If we have more connection attempts pending, we'll unsubscribe it.
-        if (@_pending_connect_count > 0) (
+        if @_pending_connect_count > 0 (
           @_pending_connect_count -= 1
           _FFI.pony_asio_event_unsubscribe(event.id)
         |
@@ -141,7 +141,7 @@
     while @io.is_readable (
       try (
         bytes_read = @read_stream.receive_from!(@io)
-        if (bytes_read > 0) (yield None)
+        if bytes_read > 0 (yield None)
       )
     )
 

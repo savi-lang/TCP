@@ -27,7 +27,7 @@
     @_listen_netaddr!.ip_address_with_port_number
 
   :fun _listen_netaddr!
-    error! if (@_fd == -1)
+    error! if @_fd == -1
     _NetAddress._for_fd(@_fd)
 
   :new (@_actor, ticket TCP.Listen.Ticket, @_limit = 0)
@@ -48,7 +48,7 @@
 
   // TODO: Delegate much of the AsioEvent internals to an `IO.CoreEngine`.
   :fun ref react(event AsioEvent) @
-    if (event.id === @_event_id) (
+    if event.id === @_event_id (
       if event.is_readable (
         yield IO.Action.Read
       )
@@ -67,7 +67,7 @@
     |
       if @_closed.not (
         try (
-          while (@_limit == 0 || @_count < @_limit) (
+          while @_limit == 0 || @_count < @_limit (
             conn_fd = _FFI.pony_os_accept(@_event_id)
             case conn_fd == (
             |  0 | error! // EWOULDBLOCK, don't try again
@@ -83,12 +83,12 @@
     )
 
   :fun ref deferred_action(action IO.Action)
-    if (action == IO.Action.ClosedChild) (
+    if action == IO.Action.ClosedChild (
       @_count -= 1
 
       // If releasing this connection takes us below the limit,
       // unpause acceptance and try to accept more connections.
-      if (@_paused && @_count < @_limit) (
+      if @_paused && @_count < @_limit (
         @_paused = False
         yield IO.Action.Read
       )
@@ -98,7 +98,7 @@
     @
 
   :fun ref close
-    if (@_closed.not && @_event_id.is_not_null) (
+    if @_closed.not && @_event_id.is_not_null (
       // When not on windows, unsubscribe immediately here instead of later.
       if Platform.is_windows.not _FFI.pony_asio_event_unsubscribe(@_event_id)
 

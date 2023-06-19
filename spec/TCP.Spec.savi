@@ -96,7 +96,7 @@
       @env.err.print("[EchoClient] Failed to connect.")
 
     | IO.Action.Read |
-      if (@io.read_stream.bytes_ahead_of_marker >= b"Hello, World!".size) (
+      if @io.read_stream.bytes_ahead_of_marker >= b"Hello, World!".size (
         bytes val = @io.read_stream.extract_all
         @env.err.print("[EchoClient] Received: \(Inspect[bytes])")
         @io.close
